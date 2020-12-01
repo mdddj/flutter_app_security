@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:device_info/device_info.dart';
 import 'package:dio/dio.dart';
+import 'package:encrypt_app/result.dart';
 import './util.dart';
 import 'package:flutter/material.dart';
 
@@ -12,7 +13,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String _deviceId = ""; // 设备id
-  String _response = ""; // 服务器返回的数据
+  Map<String,dynamic> _response; // 服务器返回的数据
+  String _decodeStr = "";// 机密后的数据
 
   @override
   void initState() {
@@ -41,10 +43,14 @@ class _HomePageState extends State<HomePage> {
             ),
             MaterialButton(
               onPressed: _getCategory,
-              child: Text("请求分类数据"),
+              child: Text("请求商品数据"),
+            ),
+            MaterialButton(
+              onPressed: _decode,
+              child: Text("解密数据"),
             ),
             Column(
-              children: [Divider(), Text(_response)],
+              children: [Divider(), Text(_decodeStr.isNotEmpty ? _decodeStr : _response.toString())],
             )
           ],
         ),
@@ -52,8 +58,31 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _decode()async{
+   Result result = Result.fromJson(_response);
+   var value = Utils.aesDecrypt(result.data);
+   setState(() {
+     _decodeStr = value;
+   });
+   print("解密后的数据:$value");
+  }
+
   Future<void> _getCategory() async {
-    var data = {"id":"30674045"};
+    var data = {"id": "30743541"};
+    Map<String, String> newParams = Utils.keySort(data);
+    String token = Utils.generateToken(newParams); // 获取token
+    String aesStr = Utils.encryptAESCbc128WithPadding7(base64Encode(utf8.encode(json.encode(newParams))));
+
+    Dio dio = Dio();
+    dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (RequestOptions options){
+        options.headers["params_token"] = token;
+      }
+    ));
+    Response response = await dio.get("${Utils.IP}/tkapi/api/v1/dtk/apis/detail", queryParameters: {"data": aesStr});
+    setState(() {
+      _response = response.data;
+    });
   }
 
   Future<void> _paramsSort() async {
@@ -65,7 +94,7 @@ class _HomePageState extends State<HomePage> {
     // params["ablout"] = "测试";
     // params["zoom"] = "145";
     // params["boot"] = "spring";
-    params["id"] = "30674045";
+    params["id"] = "30743541";
     Map<String, String> newParams = Utils.keySort(params);
     String token = Utils.generateToken(newParams); // 获取token
     print("需要放到header的token值:$token");
@@ -79,7 +108,7 @@ class _HomePageState extends State<HomePage> {
     Dio dio = Dio();
     response = await dio.post("${Utils.IP}/openapi/getToken", data: {"deviceId": _deviceId});
     setState(() {
-      _response = response.data.toString();
+      _response = response.data;
     });
   }
 

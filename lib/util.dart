@@ -57,6 +57,21 @@ class Utils {
     return v;
   }
 
+  /// aes 解密
+  //AES解密
+  static dynamic aesDecrypt(encrypted) {
+    try {
+      final key = Key.fromUtf8(_KEY);
+      final iv = IV.fromUtf8(_IV);
+      final encrypter = Encrypter(AES(key, mode: AESMode.cbc));
+      final decrypted = encrypter.decrypt16(encrypted, iv: iv);
+      return decrypted;
+    } catch (err) {
+      print("解密失败:$err");
+      return encrypted;
+    }
+  }
+
   /// md5 加密
   static String encryptMD5(String data) {
     var content = new Utf8Encoder().convert(data);
